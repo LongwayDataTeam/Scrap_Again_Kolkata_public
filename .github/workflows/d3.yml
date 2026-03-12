@@ -56,26 +56,25 @@ jobs:
         sudo rm -f /usr/bin/chromedriver
         echo "✅ Old ChromeDriver removed"
 
-    # ✅ Step 6: Install matching ChromeDriver via webdriver-manager
-    - name: Install ChromeDriver
-      run: |
-        CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
-        echo "🔍 Chrome major version: $CHROME_VERSION"
-        pip install webdriver-manager
-        python - <<EOF
-        from webdriver_manager.chrome import ChromeDriverManager
-        from selenium.webdriver.chrome.service import Service
-        path = ChromeDriverManager().install()
-        print(f"✅ ChromeDriver installed at: {path}")
-        EOF
-
-    # ✅ Step 7: Install Python dependencies
+    # ✅ Step 6: Install Python dependencies FIRST
     - name: Install Python dependencies
       run: |
         cd Scrap_Again_Kolkata
         pip install --upgrade pip
         pip install -r requirements.txt
         pip install webdriver-manager
+
+    # ✅ Step 7: Pre-download ChromeDriver into cache
+    - name: Pre-download ChromeDriver
+      run: |
+        echo "🔍 Chrome version: $(google-chrome --version)"
+        python - <<EOF
+        from webdriver_manager.chrome import ChromeDriverManager
+        import os
+        os.environ["WDM_CACHE_PATH"] = "/tmp/wdm_cache"
+        path = ChromeDriverManager().install()
+        print(f"✅ ChromeDriver installed at: {path}")
+        EOF
 
     # ✅ Step 8: Run scraper script
     - name: Run scraping script
