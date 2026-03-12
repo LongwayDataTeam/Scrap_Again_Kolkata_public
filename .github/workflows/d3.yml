@@ -1,5 +1,4 @@
 name: Daily Scraper Kolkata Again
-
 on:
   schedule:
     - cron: "30 3 * * *"   # 9:00 AM IST
@@ -16,9 +15,8 @@ on:
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
-
     # ✅ Step 1: Setup SSH
     - name: Setup SSH
       run: |
@@ -34,46 +32,58 @@ jobs:
       run: |
         git clone git@github.com:LongwayDataTeam/Scrap_Again_Kolkata.git
 
-    # ✅ Step 3: Set up Python (with pip caching)
+    # ✅ Step 3: Set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
         cache: "pip"
 
-    # ✅ Step 4: Install ONLY Google Chrome (NO chromedriver)
+    # ✅ Step 4: Install Google Chrome
     - name: Install Google Chrome
       run: |
         sudo apt-get update
         sudo apt-get install -y wget unzip xvfb libnss3 libxss1 libxi6 fonts-liberation libu2f-udev
-
         wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-
         echo "✅ Installed Chrome Version:"
         google-chrome --version
 
-    # ✅ Step 5: Remove any preinstalled ChromeDriver (IMPORTANT FIX)
+    # ✅ Step 5: Remove any preinstalled ChromeDriver
     - name: Remove system ChromeDriver
       run: |
         sudo rm -f /usr/local/bin/chromedriver
         sudo rm -f /usr/bin/chromedriver
         echo "✅ Old ChromeDriver removed"
 
-    # ✅ Step 6: Install Python dependencies + webdriver-manager
+    # ✅ Step 6: Install matching ChromeDriver via webdriver-manager
+    - name: Install ChromeDriver
+      run: |
+        CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+        echo "🔍 Chrome major version: $CHROME_VERSION"
+        pip install webdriver-manager
+        python - <<EOF
+        from webdriver_manager.chrome import ChromeDriverManager
+        from selenium.webdriver.chrome.service import Service
+        path = ChromeDriverManager().install()
+        print(f"✅ ChromeDriver installed at: {path}")
+        EOF
+
+    # ✅ Step 7: Install Python dependencies
     - name: Install Python dependencies
       run: |
         cd Scrap_Again_Kolkata
         pip install --upgrade pip
         pip install -r requirements.txt
-
-        # ✅ Required for auto-matching correct ChromeDriver
         pip install webdriver-manager
 
-    # ✅ Step 7: Run scraper script
+    # ✅ Step 8: Run scraper script
     - name: Run scraping script
+      timeout-minutes: 25
       env:
         GSHEET_CREDENTIALS: ${{ secrets.GSHEET_CREDENTIALS }}
+        WDM_CACHE_PATH: /tmp/wdm_cache
+        WDM_LOG: "0"
       run: |
         cd Scrap_Again_Kolkata
         python scrap_again_kolkata.py
